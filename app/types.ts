@@ -1,0 +1,1 @@
+export type BencodedList = Array<number | string | BencodedList>;
