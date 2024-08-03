@@ -1,12 +1,16 @@
-import { BencodedList } from "./types";
+import { BencodedDictinary, BencodedList, BencodedValue } from "./types";
 
-function decodeBencode(bencodedValue: string): string | number | BencodedList {
+function decodeBencode(bencodedValue: string): BencodedValue {
     if (bencodedValue[0] === 'i' &&  bencodedValue[bencodedValue.length - 1] === 'e') {
         return parseBencodedInteger(bencodedValue);
     }
 
-    if (bencodedValue[0] === 'l' &&  bencodedValue[bencodedValue.length - 1] === 'e') {
+    if (bencodedValue[0] === 'l' && bencodedValue[bencodedValue.length - 1] === 'e') {
         return parseBencodedList(bencodedValue);
+    }
+
+    if (bencodedValue[0] === 'd' && bencodedValue[bencodedValue.length - 1] === 'e') {
+        return parseBencodedDictionary(bencodedValue);
     }
 
     if (!isNaN(parseInt(bencodedValue[0]))) {
@@ -39,12 +43,36 @@ function parseBencodedList(value: string): BencodedList {
     let currentIndex: number = 1;
 
     while (currentIndex < value.length - 1) {
-        console.log(currentIndex);
-        
         const currentValue = getFirstBencodedValue(value.substring(currentIndex));
-        console.log(currentValue);
         result.push(decodeBencode(currentValue));
         currentIndex += currentValue.length;
+    }
+
+    return result;
+}
+
+// Examples: d3:foo3:bar5:helloi52ee -> {"foo":"bar","hello":52}
+function parseBencodedDictionary(value: string): BencodedDictinary {
+    const result: BencodedDictinary = {};
+
+    let currentIndex: number = 1;
+
+    while (currentIndex < value.length - 1) {
+        console.log(currentIndex);
+        
+        if (isNaN(parseInt(value[currentIndex]))) {
+            throw new Error("Invalid encoded value. Key of dictionary must be string");
+        }
+
+        const currentBencodedKey = getFirstBencodedValue(value.substring(currentIndex));
+        const currentKey = parseBencodedString(currentBencodedKey);
+        currentIndex += currentBencodedKey.length;
+
+        const currentBencodedValue = getFirstBencodedValue(value.substring(currentIndex));
+        const currentValue = decodeBencode(currentBencodedValue);
+        currentIndex += currentBencodedValue.length;
+
+        result[currentKey] = currentValue
     }
 
     return result;
@@ -60,7 +88,7 @@ function getFirstBencodedValue(value: string): string {
         }
 
         valueLength = stringLength.toString().length + stringLength + 1;
-    } else if (value[0] === 'l') {
+    } else if (value[0] === 'l' || value[0] === 'd') {
         let index = 1;
         while (value[index] !== 'e') {
             console.log('sliced', value.slice(1 + valueLength))
